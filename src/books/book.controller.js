@@ -1,4 +1,6 @@
 const Book = require("./book.model");
+const asyncHandler = require('express-async-handler');
+
 
 const postABook = async (req, res) => {
     try {
@@ -13,7 +15,6 @@ const postABook = async (req, res) => {
 
 // get all books
 const getAllBooks =  async (req, res) => {
-    console.log("ok");
     try {
         const books = await Book.find().sort({ createdAt: -1});
         res.status(200).send(books)
@@ -73,12 +74,52 @@ const deleteABook = async (req, res) => {
         console.error("Error deleting a book", error);
         res.status(500).send({message: "Failed to delete a book"})
     }
-};
+}
+
+const createBookReview = asyncHandler(async (req, res) => {
+    const { rating, comment } = req.body
+  
+    const book = await Book.findById(req.params.id)
+  
+    if (book) {
+      const alreadyReviewed = book.reviews.find(
+        review => review.user._id.toString() === req.user._id.toString()
+      )
+  
+    //   if (alreadyReviewed) {
+    //     res.status(400)
+    //     throw new Error("Product already reviewed")
+    //   }
+      const review = {
+        name: req.user.name,
+        rating: +rating,
+        comment,
+        user: req.user._id,
+      }
+      book.reviews.push(review)
+  
+      book.numReviews = Book.reviews.length
+  
+      book.rating =
+        book.reviews.reduce((acc, item) => item.rating + acc, 0) /
+        book.reviews.length
+  
+      await book.save()
+      res.status(201).json({
+        message: "Review Added",
+      })
+    } else {
+      res.status(404)
+      throw new Error("Book Not Found")
+    }
+});
+  
 
 module.exports = {
     postABook,
     getAllBooks,
     getSingleBook,
     UpdateBook,
-    deleteABook
+    deleteABook,
+    createBookReview,
 }
